@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Loader2, Lock, AlertCircle, BadgeCheck } from "lucide-react";
+import { ArrowRight, Loader2, AlertCircle, BadgeCheck } from "lucide-react";
 import AuthShell from "@/components/auth/AuthShell";
+import PasswordInput from "@/components/auth/PasswordInput";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { fetchCompanyProfile } from "@/lib/supabase/db";
@@ -129,34 +130,26 @@ export default function ResetPasswordPage() {
 
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-white/60">New Password</span>
-          <div className="relative">
-            <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 6 characters"
-              className="w-full rounded-lg border border-white/15 bg-white/5 py-2.5 pl-10 pr-3.5 text-sm text-white placeholder:text-white/25 outline-none transition-all duration-200 focus:border-gold/50 focus:bg-white/[0.07] focus:ring-2 focus:ring-gold/15"
-            />
-          </div>
+          <PasswordInput
+            showLockIcon
+            required
+            minLength={6}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="At least 6 characters"
+          />
         </label>
 
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-white/60">Confirm Password</span>
-          <div className="relative">
-            <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Re-enter your new password"
-              className="w-full rounded-lg border border-white/15 bg-white/5 py-2.5 pl-10 pr-3.5 text-sm text-white placeholder:text-white/25 outline-none transition-all duration-200 focus:border-gold/50 focus:bg-white/[0.07] focus:ring-2 focus:ring-gold/15"
-            />
-          </div>
+          <PasswordInput
+            showLockIcon
+            required
+            minLength={6}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Re-enter your new password"
+          />
         </label>
 
         <button

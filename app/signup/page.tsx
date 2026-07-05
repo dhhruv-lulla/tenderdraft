@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, Mail, MailCheck, AlertCircle } from "lucide-react";
 import AuthShell from "@/components/auth/AuthShell";
+import PasswordInput from "@/components/auth/PasswordInput";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
@@ -118,14 +119,12 @@ export default function SignupPage() {
 
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-white/60">Password</span>
-          <input
-            type="password"
+          <PasswordInput
             required
             minLength={6}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="At least 6 characters"
-            className="w-full rounded-lg border border-white/15 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 outline-none transition-all duration-200 focus:border-gold/50 focus:bg-white/[0.07] focus:ring-2 focus:ring-gold/15"
           />
         </label>
 
