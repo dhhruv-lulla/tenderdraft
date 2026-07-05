@@ -9,12 +9,12 @@ export default function InauguralBanner() {
 
         <span className="relative inline-flex items-center gap-1.5 rounded-full bg-gradient-to-b from-gold-light to-gold px-4 py-1.5 text-xs font-bold tracking-wide text-navy shadow-[0_1px_0_rgba(255,255,255,0.5)_inset,0_4px_16px_-4px_rgba(201,168,76,0.6)]">
           <Sparkles className="h-3.5 w-3.5" />
-          Inaugural Offer — Limited Time
+          Inaugural Offer • Limited Time
         </span>
 
         <p className="relative mt-4 text-sm leading-relaxed text-white/70 sm:text-base">
           Early customers get special{" "}
-          <span className="font-semibold text-white">founding pricing</span> —
+          <span className="font-semibold text-white">founding pricing</span>,
           locked in forever, even after the offer ends. Join now to secure
           your rate for as long as you stay subscribed.
         </p>

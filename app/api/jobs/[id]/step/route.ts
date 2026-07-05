@@ -92,7 +92,7 @@ export async function POST(
       const finalText = flattenToText(finalDocument);
 
       const { proposal, error } = await insertProposal(supabase, user.id, {
-        title: `${job.companyNameSnapshot} — Tender Response`,
+        title: `${job.companyNameSnapshot}: Tender Response`,
         proposalText: finalText,
         companyName: job.companyNameSnapshot,
         proposalJson: finalDocument,

@@ -11,7 +11,7 @@ const FAQS = [
   },
   {
     q: "What is included in a tender response?",
-    a: "Every response includes an Executive Summary, Company Overview, Technical Compliance, Past Experience and References, Team Credentials, Quality Certifications and Compliance, and a Declaration — formatted and ready to download as a Word document.",
+    a: "Every response includes an Executive Summary, Company Overview, Technical Compliance, Past Experience and References, Team Credentials, Quality Certifications and Compliance, and a Declaration, formatted and ready to download as a Word document.",
   },
   {
     q: "Can I cancel anytime?",

@@ -38,7 +38,7 @@ export default function ProfileSummaryCard({ profile }: { profile: CompanyProfil
               {f.label}
             </div>
             <div className="mt-1 truncate text-sm font-semibold text-white">
-              {f.value || "—"}
+              {f.value || "-"}
             </div>
           </div>
         ))}
@@ -67,7 +67,7 @@ export default function ProfileSummaryCard({ profile }: { profile: CompanyProfil
                 className="rounded-lg border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white/70"
               >
                 <span className="font-medium text-white">{p.client}</span>
-                {p.delivered && <span> — {p.delivered}</span>}
+                {p.delivered && <span>: {p.delivered}</span>}
               </div>
             ))}
           </div>

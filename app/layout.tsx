@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "TenderDraft — AI-Powered GeM Tender Responses",
+  title: "TenderDraft | AI-Powered GeM Tender Responses",
   description:
     "TenderDraft uses AI to turn your GeM tender documents into complete, professional bid responses in minutes.",
 };

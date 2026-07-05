@@ -16,7 +16,7 @@ import CopyUpiId from "@/components/payment/CopyUpiId";
 import { UPI_ID, PAYEE_NAME, WHATSAPP_NUMBER, WHATSAPP_DISPLAY } from "@/lib/paymentConfig";
 
 export const metadata: Metadata = {
-  title: "Complete Your Payment — TenderDraft",
+  title: "Complete Your Payment | TenderDraft",
   description: "Scan the UPI QR code to complete your TenderDraft plan payment.",
 };
 
@@ -40,7 +40,7 @@ export default async function PaymentPage({
     { icon: QrCode, text: "Scan the QR code with any UPI app" },
     {
       icon: IndianRupee,
-      text: price ? `Pay the exact amount — ${price}` : "Pay the exact amount",
+      text: price ? `Pay the exact amount: ${price}` : "Pay the exact amount",
     },
     {
       icon: MessageCircle,
@@ -89,7 +89,7 @@ export default async function PaymentPage({
             </div>
             <p className="mt-3 text-xs text-white/40">
               You&apos;ll see <span className="font-medium text-white/65">{PAYEE_NAME}</span> as the
-              recipient in your UPI app — that&apos;s correct.
+              recipient in your UPI app. That&apos;s correct.
             </p>
 
             <div className="mt-6 w-full">
@@ -129,7 +129,7 @@ export default async function PaymentPage({
 
           <p className="mt-4 text-center text-xs leading-relaxed text-white/40">
             This is a direct UPI transfer you approve yourself from your own banking
-            app — we never ask for your PIN, OTP, or card details.
+            app. We never ask for your PIN, OTP, or card details.
           </p>
         </div>
 

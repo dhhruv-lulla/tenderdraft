@@ -43,7 +43,7 @@ function BlockView({ block }: { block: Block }) {
               <tr key={i} className="odd:bg-white/[0.02]">
                 {row.map((cell, j) => (
                   <td key={j} className="border-b border-white/5 px-3 py-2 align-top text-white/70">
-                    {cell || <span className="text-white/25">—</span>}
+                    {cell || <span className="text-white/25">-</span>}
                   </td>
                 ))}
               </tr>

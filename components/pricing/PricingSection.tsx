@@ -48,7 +48,7 @@ const TIERS: PricingTier[] = [
       "Locked-in pricing",
       "Priority support",
     ],
-    savingsNote: "Save ₹6,000 — two months free",
+    savingsNote: "Save ₹6,000 (two months free)",
     ctaLabel: "Get Started",
   },
 ];

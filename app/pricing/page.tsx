@@ -5,7 +5,7 @@ import PricingSection from "@/components/pricing/PricingSection";
 import FAQSection from "@/components/pricing/FAQSection";
 
 export const metadata: Metadata = {
-  title: "Pricing — TenderDraft",
+  title: "Pricing | TenderDraft",
   description: "Simple, transparent pricing for GeM tender response generation.",
 };
 

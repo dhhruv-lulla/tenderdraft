@@ -407,7 +407,7 @@ export default function OnboardingPage() {
               </div>
               <p className="text-xs text-white/45">
                 Powers the Bidder Profile and Documents Checklist sections. Skip anything you don&apos;t have
-                on hand — you can always fill it in later from your dashboard.
+                on hand. You can always fill it in later from your dashboard.
               </p>
 
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -635,7 +635,7 @@ export default function OnboardingPage() {
             <div className="flex items-center gap-4">
               {(step === 2 || step === 3) && (
                 <button type="button" onClick={handleNext} className={skipButtonClass()}>
-                  Skip — not available yet
+                  Skip (not available yet)
                 </button>
               )}
 

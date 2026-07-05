@@ -5,7 +5,7 @@ import Footer from "@/components/Footer";
 import Reveal from "@/components/Reveal";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — TenderDraft",
+  title: "Privacy Policy | TenderDraft",
   description:
     "How TenderDraft handles your data, DPDP Act 2023 compliance, and your rights.",
 };

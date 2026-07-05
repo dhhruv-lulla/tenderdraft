@@ -2,19 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArrowRight, Loader2, Mail, AlertCircle } from "lucide-react";
+import { ArrowRight, Loader2, Mail, MailCheck, AlertCircle, ArrowLeft } from "lucide-react";
 import AuthShell from "@/components/auth/AuthShell";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { fetchCompanyProfile } from "@/lib/supabase/db";
 
-export default function LoginPage() {
-  const router = useRouter();
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,42 +19,61 @@ export default function LoginPage() {
 
     if (!isSupabaseConfigured) {
       setError(
-        "Supabase isn't configured yet. Add your project URL and anon key to .env.local to enable login."
+        "Supabase isn't configured yet. Add your project URL and anon key to .env.local to enable password resets."
       );
       return;
     }
 
     setLoading(true);
     const supabase = createClient();
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
     });
+    setLoading(false);
 
-    if (signInError) {
-      setLoading(false);
-      setError(signInError.message);
+    if (resetError) {
+      setError(resetError.message);
       return;
     }
 
-    const profile = data.user ? await fetchCompanyProfile(supabase, data.user.id) : null;
-    setLoading(false);
-
-    router.push(profile ? "/dashboard" : "/onboarding");
-    router.refresh();
+    setSubmitted(true);
   };
+
+  if (submitted) {
+    return (
+      <AuthShell title="Check your email" subtitle="We've sent you a password reset link">
+        <div className="flex flex-col items-center text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gold/10 ring-1 ring-gold/30">
+            <MailCheck className="h-6 w-6 text-gold" strokeWidth={1.75} />
+          </div>
+          <p className="mt-5 text-sm leading-relaxed text-white/60">
+            If an account exists for <span className="text-white">{email}</span>, click the
+            link we sent to set a new password.
+          </p>
+          <Link
+            href="/login"
+            className="mt-7 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-b from-gold-light to-gold px-6 py-2.5 text-sm font-semibold text-navy transition-all duration-200 hover:-translate-y-0.5"
+          >
+            Back to Log In
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </AuthShell>
+    );
+  }
 
   return (
     <AuthShell
-      title="Welcome back"
-      subtitle="Log in to continue drafting your tender responses"
+      title="Reset your password"
+      subtitle="Enter your email and we'll send you a reset link"
       footer={
-        <span>
-          New to TenderDraft?{" "}
-          <Link href="/signup" className="font-medium text-gold hover:text-gold-light">
-            Create an account
-          </Link>
-        </span>
+        <Link
+          href="/login"
+          className="inline-flex items-center gap-1.5 font-medium text-gold hover:text-gold-light"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to Log In
+        </Link>
       }
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -83,26 +99,6 @@ export default function LoginPage() {
           </div>
         </label>
 
-        <label className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-white/60">Password</span>
-            <Link
-              href="/forgot-password"
-              className="text-xs font-medium text-gold hover:text-gold-light"
-            >
-              Forgot password?
-            </Link>
-          </div>
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Your password"
-            className="w-full rounded-lg border border-white/15 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 outline-none transition-all duration-200 focus:border-gold/50 focus:bg-white/[0.07] focus:ring-2 focus:ring-gold/15"
-          />
-        </label>
-
         <button
           type="submit"
           disabled={loading}
@@ -112,7 +108,7 @@ export default function LoginPage() {
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <>
-              Log In
+              Send Reset Link
               <ArrowRight className="h-3.5 w-3.5" />
             </>
           )}
