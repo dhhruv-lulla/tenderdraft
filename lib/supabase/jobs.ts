@@ -1,0 +1,138 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { CompanyProfile } from "@/lib/types";
+import type { ProposalDocument } from "@/lib/proposalDocument";
+import type { TenderData } from "@/lib/tenderData";
+
+export const GENERATION_JOBS_TABLE = "generation_jobs";
+
+export type JobStatus = "queued" | "extracted" | "assembled" | "complete" | "error";
+
+export interface GenerationJobFile {
+  name: string;
+  base64: string;
+}
+
+export interface GenerationJob {
+  id: string;
+  status: JobStatus;
+  errorMessage: string | null;
+  inputProfile: CompanyProfile;
+  inputSpecUrl: string | null;
+  inputFiles: GenerationJobFile[] | null;
+  tenderData: TenderData | null;
+  proposalJson: ProposalDocument | null;
+  proposalText: string | null;
+  companyNameSnapshot: string;
+  resultProposalId: string | null;
+}
+
+const JOB_COLUMNS =
+  "id, status, error_message, input_profile, input_spec_url, input_files, tender_data, proposal_json, proposal_text, company_name_snapshot, result_proposal_id";
+
+interface JobRow {
+  id: string;
+  status: JobStatus;
+  error_message: string | null;
+  input_profile: CompanyProfile;
+  input_spec_url: string | null;
+  input_files: GenerationJobFile[] | null;
+  tender_data: TenderData | null;
+  proposal_json: ProposalDocument | null;
+  proposal_text: string | null;
+  company_name_snapshot: string;
+  result_proposal_id: string | null;
+}
+
+function rowToJob(row: JobRow): GenerationJob {
+  return {
+    id: row.id,
+    status: row.status,
+    errorMessage: row.error_message,
+    inputProfile: row.input_profile,
+    inputSpecUrl: row.input_spec_url,
+    inputFiles: row.input_files,
+    tenderData: row.tender_data,
+    proposalJson: row.proposal_json,
+    proposalText: row.proposal_text,
+    companyNameSnapshot: row.company_name_snapshot,
+    resultProposalId: row.result_proposal_id,
+  };
+}
+
+export async function createGenerationJob(
+  supabase: SupabaseClient,
+  userId: string,
+  input: {
+    profile: CompanyProfile;
+    specUrl: string | null;
+    files: GenerationJobFile[];
+    companyName: string;
+  }
+): Promise<{ jobId: string | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from(GENERATION_JOBS_TABLE)
+    .insert({
+      user_id: userId,
+      status: "queued",
+      input_profile: input.profile,
+      input_spec_url: input.specUrl,
+      input_files: input.files,
+      company_name_snapshot: input.companyName,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) return { jobId: null, error: error?.message || "Unknown error" };
+  return { jobId: data.id as string, error: null };
+}
+
+export async function fetchGenerationJob(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string
+): Promise<GenerationJob | null> {
+  const { data, error } = await supabase
+    .from(GENERATION_JOBS_TABLE)
+    .select(JOB_COLUMNS)
+    .eq("user_id", userId)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return rowToJob(data as JobRow);
+}
+
+export interface UpdateGenerationJobInput {
+  status?: JobStatus;
+  errorMessage?: string | null;
+  inputFiles?: GenerationJobFile[] | null;
+  tenderData?: TenderData | null;
+  proposalJson?: ProposalDocument | null;
+  proposalText?: string | null;
+  resultProposalId?: string | null;
+}
+
+export async function updateGenerationJob(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string,
+  patch: UpdateGenerationJobInput
+): Promise<{ error: string | null }> {
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+  if (patch.status !== undefined) update.status = patch.status;
+  if (patch.errorMessage !== undefined) update.error_message = patch.errorMessage;
+  if (patch.inputFiles !== undefined) update.input_files = patch.inputFiles;
+  if (patch.tenderData !== undefined) update.tender_data = patch.tenderData;
+  if (patch.proposalJson !== undefined) update.proposal_json = patch.proposalJson;
+  if (patch.proposalText !== undefined) update.proposal_text = patch.proposalText;
+  if (patch.resultProposalId !== undefined) update.result_proposal_id = patch.resultProposalId;
+
+  const { error } = await supabase
+    .from(GENERATION_JOBS_TABLE)
+    .update(update)
+    .eq("user_id", userId)
+    .eq("id", id);
+
+  return { error: error?.message || null };
+}
