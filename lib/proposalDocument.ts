@@ -4,6 +4,7 @@ export type Block =
   | { type: "bullet"; items: string[] }
   | { type: "table"; headers: string[]; rows: string[][] }
   | { type: "notice"; variant: "info" | "warning"; title: string; text: string; items?: string[] }
+  | { type: "checklist"; items: string[] }
   | { type: "signature" };
 
 export interface ProposalSection {
@@ -17,6 +18,32 @@ export interface ProposalDocument {
 }
 
 export const PLACEHOLDER = "To be filled by client";
+
+// Printed on every page of the Word export and at the top/bottom of the
+// on-screen view, so it lives alongside the document model rather than in
+// generateDocx.ts or ProposalDocumentView.tsx specifically.
+export interface ProposalHeaderInfo {
+  companyName: string;
+  gstNumber: string;
+  udyamNumber: string;
+  contactDetails: string;
+}
+
+// Deliberately typed structurally (not `CompanyProfile`) to avoid a circular
+// import - lib/types.ts already imports ProposalDocument from this file.
+export function buildHeaderInfo(profile: {
+  companyName: string;
+  gstNumber: string;
+  udyamNumber: string;
+  registeredAddress: string;
+}): ProposalHeaderInfo {
+  return {
+    companyName: profile.companyName.trim() || PLACEHOLDER,
+    gstNumber: profile.gstNumber.trim() || PLACEHOLDER,
+    udyamNumber: profile.udyamNumber.trim() || PLACEHOLDER,
+    contactDetails: profile.registeredAddress.trim() || PLACEHOLDER,
+  };
+}
 
 export function flattenToText(doc: ProposalDocument): string {
   const lines: string[] = [];
@@ -46,6 +73,10 @@ export function flattenToText(doc: ProposalDocument): string {
           for (const item of block.items) {
             lines.push(`- ${item}`);
           }
+        }
+      } else if (block.type === "checklist") {
+        for (const item of block.items) {
+          lines.push(`[ ] ${item}`);
         }
       } else if (block.type === "signature") {
         lines.push("Authorised Signatory");

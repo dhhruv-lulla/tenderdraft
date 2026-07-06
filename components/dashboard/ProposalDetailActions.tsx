@@ -4,16 +4,16 @@ import { useState } from "react";
 import { Clipboard, Download, Loader2 } from "lucide-react";
 import { generateDocxFromDocument, generateProposalDocx } from "@/lib/generateDocx";
 import { flattenToText } from "@/lib/proposalDocument";
-import type { ProposalDocument } from "@/lib/proposalDocument";
+import type { ProposalDocument, ProposalHeaderInfo } from "@/lib/proposalDocument";
 
 export default function ProposalDetailActions({
   proposalText,
   proposalJson,
-  companyName,
+  headerInfo,
 }: {
   proposalText: string;
   proposalJson?: ProposalDocument;
-  companyName: string;
+  headerInfo: ProposalHeaderInfo;
 }) {
   const [isExporting, setIsExporting] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -22,12 +22,12 @@ export default function ProposalDetailActions({
     setIsExporting(true);
     try {
       const blob = proposalJson
-        ? await generateDocxFromDocument(proposalJson, companyName)
-        : await generateProposalDocx(proposalText, companyName);
+        ? await generateDocxFromDocument(proposalJson, headerInfo)
+        : await generateProposalDocx(proposalText, headerInfo.companyName);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const safeName = (companyName || "TenderDraft").replace(/[^a-z0-9]+/gi, "-");
+      const safeName = (headerInfo.companyName || "TenderDraft").replace(/[^a-z0-9]+/gi, "-");
       a.download = `${safeName}-Tender-Proposal.docx`;
       document.body.appendChild(a);
       a.click();

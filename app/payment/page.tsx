@@ -88,8 +88,8 @@ export default async function PaymentPage({
               />
             </div>
             <p className="mt-3 text-xs text-white/40">
-              You&apos;ll see <span className="font-medium text-white/65">{PAYEE_NAME}</span> as the
-              recipient in your UPI app. That&apos;s correct.
+              You&apos;ll see <span className="font-medium text-white/65">{PAYEE_NAME}</span>{" "}
+              as the recipient in your UPI app. That&apos;s correct.
             </p>
 
             <div className="mt-6 w-full">

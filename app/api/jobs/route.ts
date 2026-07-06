@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { fetchCompanyProfile } from "@/lib/supabase/db";
+import { fetchCompanyProfile, fetchIsActive } from "@/lib/supabase/db";
 import { createGenerationJob, type GenerationJobFile } from "@/lib/supabase/jobs";
 
 export const runtime = "nodejs";
@@ -34,6 +34,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const isActive = await fetchIsActive(supabase, user.id);
+  if (!isActive) {
+    return NextResponse.json(
+      {
+        error:
+          "Your account is being activated. Complete payment and contact us on WhatsApp to start generating proposals.",
+      },
+      { status: 403 }
+    );
+  }
+
   try {
     const formData = await request.formData();
 
@@ -54,10 +65,15 @@ export async function POST(request: NextRequest) {
     const specUrlRaw = formData.get("specUrl");
     const specUrl = typeof specUrlRaw === "string" && specUrlRaw.trim() ? specUrlRaw.trim() : null;
 
+    const instructionsRaw = formData.get("additionalInstructions");
+    const additionalInstructions =
+      typeof instructionsRaw === "string" && instructionsRaw.trim() ? instructionsRaw.trim() : null;
+
     const { jobId, error } = await createGenerationJob(supabase, user.id, {
       profile,
       specUrl,
       files: jobFiles,
+      additionalInstructions,
       companyName: profile.companyName,
     });
 

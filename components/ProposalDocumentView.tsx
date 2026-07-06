@@ -1,5 +1,5 @@
-import type { Block, ProposalDocument } from "@/lib/proposalDocument";
-import { AlertTriangle, Info } from "lucide-react";
+import type { Block, ProposalDocument, ProposalHeaderInfo } from "@/lib/proposalDocument";
+import { AlertTriangle, Info, Square } from "lucide-react";
 
 function BlockView({ block }: { block: Block }) {
   if (block.type === "heading") {
@@ -84,6 +84,19 @@ function BlockView({ block }: { block: Block }) {
     );
   }
 
+  if (block.type === "checklist") {
+    return (
+      <ul className="my-3 flex flex-col gap-2 rounded-xl border border-gold/20 bg-gold/5 p-4">
+        {block.items.map((item, i) => (
+          <li key={i} className="flex items-start gap-2.5 text-sm leading-relaxed text-white/80">
+            <Square className="mt-0.5 h-4 w-4 shrink-0 text-gold/70" strokeWidth={2} />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   return (
     <div className="mt-6 rounded-lg border border-white/10 p-4 text-sm text-white/70">
       <p className="font-semibold text-white">For the Bidder,</p>
@@ -96,9 +109,24 @@ function BlockView({ block }: { block: Block }) {
   );
 }
 
-export default function ProposalDocumentView({ document }: { document: ProposalDocument }) {
+export default function ProposalDocumentView({
+  document,
+  headerInfo,
+}: {
+  document: ProposalDocument;
+  headerInfo: ProposalHeaderInfo;
+}) {
   return (
     <div className="animate-fade-in mx-auto max-w-2xl">
+      <div className="mb-6 border-b border-gold/20 pb-4">
+        <p className="text-xl font-bold text-white">{headerInfo.companyName}</p>
+        <p className="mt-1 text-xs text-white/45">
+          GST: {headerInfo.gstNumber}
+          <span className="mx-2 text-white/20">|</span>
+          Udyam: {headerInfo.udyamNumber}
+        </p>
+      </div>
+
       {document.sections.map((section) => (
         <section key={section.id} className="mb-8">
           <h2 className="mb-3 border-b border-gold/20 pb-2 text-lg font-bold text-white">{section.title}</h2>
@@ -107,6 +135,12 @@ export default function ProposalDocumentView({ document }: { document: ProposalD
           ))}
         </section>
       ))}
+
+      <div className="mt-10 border-t border-white/10 pt-4 text-center text-xs text-white/35">
+        {headerInfo.companyName}
+        <span className="mx-2 text-white/15">•</span>
+        {headerInfo.contactDetails}
+      </div>
     </div>
   );
 }

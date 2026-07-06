@@ -87,7 +87,7 @@ export async function POST(
         throw new Error("Tender data or proposal document is missing for an already-assembled job.");
       }
 
-      const enrichment = await enrichCompliance(job.tenderData, job.inputProfile);
+      const enrichment = await enrichCompliance(job.tenderData, job.inputProfile, job.additionalInstructions);
       const finalDocument = applyComplianceEnrichment(job.proposalJson, job.tenderData, enrichment);
       const finalText = flattenToText(finalDocument);
 

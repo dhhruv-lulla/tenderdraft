@@ -1,6 +1,7 @@
 import type { CompanyProfile } from "@/lib/types";
 import type { TenderData, TenderItem } from "@/lib/tenderData";
 import { PLACEHOLDER, type Block, type ProposalDocument, type ProposalSection } from "@/lib/proposalDocument";
+import type { ComplianceEnrichment } from "@/lib/enrichCompliance";
 
 class Accumulator {
   actionItems: string[] = [];
@@ -484,23 +485,21 @@ function buildDocumentsChecklist(
   };
 }
 
-function buildActionRequired(acc: Accumulator, outstandingDocs: string[]): ProposalSection {
+function buildPreSubmissionChecklist(acc: Accumulator, outstandingDocs: string[]): ProposalSection {
   const items = [...acc.actionItems.map((label) => `Fill in: ${label}`), ...outstandingDocs.map((d) => `Arrange document: ${d}`)];
 
   return {
-    id: "action-required",
-    title: "ACTION REQUIRED BEFORE SUBMISSION",
+    id: "pre-submission-checklist",
+    title: "Pre-Submission Checklist",
     blocks: [
       {
-        type: "notice",
-        variant: "warning",
-        title: "ACTION REQUIRED BEFORE SUBMISSION",
+        type: "paragraph",
         text:
           items.length > 0
-            ? "The following items must be completed before this bid can be submitted:"
-            : "No outstanding placeholders were detected — please still do a final manual review before submission.",
-        items: items.length > 0 ? items : undefined,
+            ? "Complete every item below before this bid is submitted:"
+            : "No outstanding placeholders were detected. Still do a final manual review before submission.",
       },
+      { type: "checklist", items: items.length > 0 ? items : ["Final manual review of this document"] },
     ],
   };
 }
@@ -523,8 +522,8 @@ export function buildProposalDocument(tender: TenderData, profile: CompanyProfil
   const termsConditionsCompliance = buildTermsConditionsCompliance(acc, tender);
   const commercialOffer = buildCommercialOffer(tender);
   const { section: documentsChecklist, toArrange } = buildDocumentsChecklist(tender, profile);
-  const actionRequired = buildActionRequired(acc, toArrange);
   const signatureBlock = buildSignatureBlock();
+  const preSubmissionChecklist = buildPreSubmissionChecklist(acc, toArrange);
 
   return {
     sections: [
@@ -539,8 +538,10 @@ export function buildProposalDocument(tender: TenderData, profile: CompanyProfil
       termsConditionsCompliance,
       commercialOffer,
       documentsChecklist,
-      actionRequired,
       signatureBlock,
+      // Deliberately last: the document should end with a single consolidated
+      // checklist of every placeholder and document still outstanding.
+      preSubmissionChecklist,
     ],
   };
 }
@@ -548,7 +549,7 @@ export function buildProposalDocument(tender: TenderData, profile: CompanyProfil
 export function applyComplianceEnrichment(
   doc: ProposalDocument,
   tender: TenderData,
-  enrichment: { eligibilityNotes: Record<string, string>; termsNotes: Record<string, string> } | null
+  enrichment: ComplianceEnrichment | null
 ): ProposalDocument {
   if (!enrichment) return doc;
 
@@ -560,6 +561,16 @@ export function applyComplianceEnrichment(
     sections: doc.sections.map((section) => {
       if (section.id === "eligibility-compliance") return eligibilityCompliance;
       if (section.id === "terms-conditions-compliance") return termsConditionsCompliance;
+      if (section.id === "covering-letter" && enrichment.coveringLetterNote.trim()) {
+        // Insert the emphasis paragraph right after the confirmations bullet
+        // list and before the closing ask - it must never be the only source
+        // of a fact, so it only ever restates/reframes what's already here.
+        const bulletIndex = section.blocks.findIndex((b) => b.type === "bullet");
+        const insertAt = bulletIndex === -1 ? section.blocks.length : bulletIndex + 1;
+        const blocks = [...section.blocks];
+        blocks.splice(insertAt, 0, { type: "paragraph", text: enrichment.coveringLetterNote.trim() });
+        return { ...section, blocks };
+      }
       return section;
     }),
   };

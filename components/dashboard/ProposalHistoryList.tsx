@@ -3,18 +3,28 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Download, FileText, Loader2 } from "lucide-react";
-import type { Proposal } from "@/lib/types";
+import type { CompanyProfile, Proposal } from "@/lib/types";
 import { generateDocxFromDocument, generateProposalDocx } from "@/lib/generateDocx";
+import { buildHeaderInfo } from "@/lib/proposalDocument";
 
-export default function ProposalHistoryList({ proposals }: { proposals: Proposal[] }) {
+export default function ProposalHistoryList({
+  proposals,
+  profile,
+}: {
+  proposals: Proposal[];
+  profile: CompanyProfile | null;
+}) {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const handleDownload = async (proposal: Proposal) => {
     setDownloadingId(proposal.id);
     try {
+      const headerInfo = buildHeaderInfo(
+        profile ?? { companyName: proposal.companyName, gstNumber: "", udyamNumber: "", registeredAddress: "" }
+      );
       const blob = proposal.proposalJson
-        ? await generateDocxFromDocument(proposal.proposalJson, proposal.companyName)
-        : await generateProposalDocx(proposal.proposalText, proposal.companyName);
+        ? await generateDocxFromDocument(proposal.proposalJson, headerInfo)
+        : await generateProposalDocx(proposal.proposalText, headerInfo.companyName);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

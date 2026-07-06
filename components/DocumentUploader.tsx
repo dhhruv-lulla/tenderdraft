@@ -8,6 +8,8 @@ interface Props {
   onFilesChange: (files: File[]) => void;
   specUrl: string;
   onSpecUrlChange: (url: string) => void;
+  additionalInstructions: string;
+  onAdditionalInstructionsChange: (value: string) => void;
   error?: string;
 }
 
@@ -16,6 +18,8 @@ export default function DocumentUploader({
   onFilesChange,
   specUrl,
   onSpecUrlChange,
+  additionalInstructions,
+  onAdditionalInstructionsChange,
   error,
 }: Props) {
   const [isDragging, setIsDragging] = useState(false);
@@ -153,6 +157,25 @@ export default function DocumentUploader({
         <p className="mt-1.5 text-xs text-white/40">
           Some GeM tenders link to external specification documents. Paste
           the URL here and we will fetch the content automatically.
+        </p>
+      </div>
+
+      <div className="mt-7">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-white">
+            Additional Instructions (Optional)
+          </span>
+          <textarea
+            rows={3}
+            value={additionalInstructions}
+            onChange={(e) => onAdditionalInstructionsChange(e.target.value)}
+            placeholder="Add any specific requirements for this bid, e.g. emphasize our fast delivery, mention a specific past project, adjust the tone."
+            className="w-full rounded-lg border border-white/15 bg-white/[0.04] px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-all duration-200 focus:border-gold/50 focus:ring-2 focus:ring-gold/15"
+          />
+        </label>
+        <p className="mt-1.5 text-xs text-white/40">
+          Used to guide tone and emphasis only. We will never invent a fact, figure, or
+          credential that isn&apos;t already in your company profile.
         </p>
       </div>
     </div>

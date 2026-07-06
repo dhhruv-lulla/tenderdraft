@@ -19,6 +19,7 @@ export interface GenerationJob {
   inputProfile: CompanyProfile;
   inputSpecUrl: string | null;
   inputFiles: GenerationJobFile[] | null;
+  additionalInstructions: string | null;
   tenderData: TenderData | null;
   proposalJson: ProposalDocument | null;
   proposalText: string | null;
@@ -27,7 +28,7 @@ export interface GenerationJob {
 }
 
 const JOB_COLUMNS =
-  "id, status, error_message, input_profile, input_spec_url, input_files, tender_data, proposal_json, proposal_text, company_name_snapshot, result_proposal_id";
+  "id, status, error_message, input_profile, input_spec_url, input_files, additional_instructions, tender_data, proposal_json, proposal_text, company_name_snapshot, result_proposal_id";
 
 interface JobRow {
   id: string;
@@ -36,6 +37,7 @@ interface JobRow {
   input_profile: CompanyProfile;
   input_spec_url: string | null;
   input_files: GenerationJobFile[] | null;
+  additional_instructions: string | null;
   tender_data: TenderData | null;
   proposal_json: ProposalDocument | null;
   proposal_text: string | null;
@@ -51,6 +53,7 @@ function rowToJob(row: JobRow): GenerationJob {
     inputProfile: row.input_profile,
     inputSpecUrl: row.input_spec_url,
     inputFiles: row.input_files,
+    additionalInstructions: row.additional_instructions,
     tenderData: row.tender_data,
     proposalJson: row.proposal_json,
     proposalText: row.proposal_text,
@@ -66,6 +69,7 @@ export async function createGenerationJob(
     profile: CompanyProfile;
     specUrl: string | null;
     files: GenerationJobFile[];
+    additionalInstructions: string | null;
     companyName: string;
   }
 ): Promise<{ jobId: string | null; error: string | null }> {
@@ -77,6 +81,7 @@ export async function createGenerationJob(
       input_profile: input.profile,
       input_spec_url: input.specUrl,
       input_files: input.files,
+      additional_instructions: input.additionalInstructions,
       company_name_snapshot: input.companyName,
     })
     .select("id")

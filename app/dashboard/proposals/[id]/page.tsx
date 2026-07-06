@@ -6,8 +6,9 @@ import Footer from "@/components/Footer";
 import ProposalDetailActions from "@/components/dashboard/ProposalDetailActions";
 import ProposalDocumentView from "@/components/ProposalDocumentView";
 import { createClient } from "@/lib/supabase/server";
-import { fetchProposal } from "@/lib/supabase/db";
+import { fetchProposal, fetchCompanyProfile } from "@/lib/supabase/db";
 import { parseProposal } from "@/lib/parseProposal";
+import { buildHeaderInfo } from "@/lib/proposalDocument";
 
 export default async function ProposalDetailPage({
   params,
@@ -24,13 +25,19 @@ export default async function ProposalDetailPage({
     redirect("/login");
   }
 
-  const proposal = await fetchProposal(supabase, user.id, id);
+  const [proposal, profile] = await Promise.all([
+    fetchProposal(supabase, user.id, id),
+    fetchCompanyProfile(supabase, user.id),
+  ]);
 
   if (!proposal) {
     notFound();
   }
 
   const blocks = proposal.proposalJson ? null : parseProposal(proposal.proposalText);
+  const headerInfo = buildHeaderInfo(
+    profile ?? { companyName: proposal.companyName, gstNumber: "", udyamNumber: "", registeredAddress: "" }
+  );
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -61,13 +68,13 @@ export default async function ProposalDetailPage({
             <ProposalDetailActions
               proposalText={proposal.proposalText}
               proposalJson={proposal.proposalJson}
-              companyName={proposal.companyName}
+              headerInfo={headerInfo}
             />
           </div>
 
           <div className="mx-auto max-w-2xl px-6 py-8 sm:px-8">
             {proposal.proposalJson ? (
-              <ProposalDocumentView document={proposal.proposalJson} />
+              <ProposalDocumentView document={proposal.proposalJson} headerInfo={headerInfo} />
             ) : (
               blocks?.map((block, i) => {
                 if (block.type === "heading") {

@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProfileSummaryCard from "@/components/dashboard/ProfileSummaryCard";
 import ProposalHistoryList from "@/components/dashboard/ProposalHistoryList";
+import CompanyDocumentsCard from "@/components/dashboard/CompanyDocumentsCard";
 import { createClient } from "@/lib/supabase/server";
 import { fetchCompanyProfile, fetchProposals } from "@/lib/supabase/db";
 
@@ -47,7 +48,10 @@ export default async function DashboardPage() {
         </div>
 
         {profile ? (
-          <ProfileSummaryCard profile={profile} />
+          <>
+            <ProfileSummaryCard profile={profile} />
+            <CompanyDocumentsCard userId={user.id} />
+          </>
         ) : (
           <div className="glass shadow-premium rounded-2xl p-8 text-center">
             <p className="text-sm text-white/60">
@@ -64,7 +68,7 @@ export default async function DashboardPage() {
 
         <div className="mt-10">
           <h2 className="mb-4 text-base font-semibold text-white">Proposal History</h2>
-          <ProposalHistoryList proposals={proposals} />
+          <ProposalHistoryList proposals={proposals} profile={profile} />
         </div>
       </main>
 

@@ -2,21 +2,21 @@
 
 import { useState } from "react";
 import { Clipboard, Download, FileText, Loader2, Sparkles } from "lucide-react";
-import { flattenToText, type ProposalDocument } from "@/lib/proposalDocument";
+import { flattenToText, type ProposalDocument, type ProposalHeaderInfo } from "@/lib/proposalDocument";
 import { generateDocxFromDocument } from "@/lib/generateDocx";
 import ProposalDocumentView from "@/components/ProposalDocumentView";
 
 interface Props {
   proposalDocument: ProposalDocument | null;
   isGenerating: boolean;
-  companyName: string;
+  headerInfo: ProposalHeaderInfo;
   onNotify: (message: string, variant: "success" | "error") => void;
 }
 
 export default function ProposalPanel({
   proposalDocument,
   isGenerating,
-  companyName,
+  headerInfo,
   onNotify,
 }: Props) {
   const [isExporting, setIsExporting] = useState(false);
@@ -25,11 +25,11 @@ export default function ProposalPanel({
     if (!proposalDocument) return;
     setIsExporting(true);
     try {
-      const blob = await generateDocxFromDocument(proposalDocument, companyName);
+      const blob = await generateDocxFromDocument(proposalDocument, headerInfo);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const safeName = (companyName || "TenderDraft").replace(/[^a-z0-9]+/gi, "-");
+      const safeName = (headerInfo.companyName || "TenderDraft").replace(/[^a-z0-9]+/gi, "-");
       a.download = `${safeName}-Tender-Proposal.docx`;
       document.body.appendChild(a);
       a.click();
@@ -91,7 +91,7 @@ export default function ProposalPanel({
         {isGenerating ? (
           <LoadingState />
         ) : proposalDocument ? (
-          <ProposalDocumentView document={proposalDocument} />
+          <ProposalDocumentView document={proposalDocument} headerInfo={headerInfo} />
         ) : (
           <EmptyState />
         )}

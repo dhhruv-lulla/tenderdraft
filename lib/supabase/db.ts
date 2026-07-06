@@ -95,6 +95,21 @@ export async function fetchCompanyProfile(
   return rowToProfile(data as CompanyProfileRow);
 }
 
+// Deliberately kept separate from CompanyProfile/fetchCompanyProfile: this
+// flag is operator-managed (flipped manually in the Supabase dashboard after
+// payment), never written by the app, so it must never round-trip through
+// saveCompanyProfile's upsert payload.
+export async function fetchIsActive(supabase: SupabaseClient, userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from(COMPANY_PROFILES_TABLE)
+    .select("is_active")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error || !data) return false;
+  return Boolean((data as { is_active: boolean | null }).is_active);
+}
+
 export async function saveCompanyProfile(
   supabase: SupabaseClient,
   userId: string,

@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AppWorkspace from "@/components/app/AppWorkspace";
 import { createClient } from "@/lib/supabase/server";
-import { fetchCompanyProfile } from "@/lib/supabase/db";
+import { fetchCompanyProfile, fetchIsActive } from "@/lib/supabase/db";
 
 export default async function AppPage() {
   const supabase = await createClient();
@@ -16,7 +16,10 @@ export default async function AppPage() {
     redirect("/signup");
   }
 
-  const profile = await fetchCompanyProfile(supabase, user.id);
+  const [profile, isActive] = await Promise.all([
+    fetchCompanyProfile(supabase, user.id),
+    fetchIsActive(supabase, user.id),
+  ]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -34,7 +37,7 @@ export default async function AppPage() {
         </div>
 
         {profile ? (
-          <AppWorkspace profile={profile} />
+          <AppWorkspace profile={profile} isActive={isActive} />
         ) : (
           <div className="glass shadow-premium mx-auto max-w-lg rounded-2xl p-8 text-center">
             <p className="text-sm text-white/60">

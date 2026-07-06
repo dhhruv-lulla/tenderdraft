@@ -14,35 +14,46 @@ import {
   TableOfContents,
   WidthType,
   ShadingType,
+  PageNumber,
 } from "docx";
 import { parseProposal } from "@/lib/parseProposal";
-import type { Block, ProposalDocument } from "@/lib/proposalDocument";
+import type { Block, ProposalDocument, ProposalHeaderInfo } from "@/lib/proposalDocument";
 
 const GOLD = "C9A84C";
 const NAVY = "0F1C3F";
 const NOTICE_FILL = "FBF3D9";
 const WARNING_FILL = "FBE4E1";
 
-function brandHeader() {
+function proposalHeader(info: ProposalHeaderInfo) {
   return new Header({
     children: [
       new Paragraph({
-        alignment: AlignmentType.RIGHT,
         border: {
           bottom: { color: GOLD, space: 4, style: BorderStyle.SINGLE, size: 6 },
         },
-        children: [new TextRun({ text: "TenderDraft", bold: true, color: NAVY, size: 20 })],
+        children: [new TextRun({ text: info.companyName, bold: true, color: NAVY, size: 24 })],
+      }),
+      new Paragraph({
+        spacing: { before: 40 },
+        children: [
+          new TextRun({ text: `GST: ${info.gstNumber}   |   Udyam: ${info.udyamNumber}`, size: 16, color: "666666" }),
+        ],
       }),
     ],
   });
 }
 
-function brandFooter(companyName: string) {
+function proposalFooter(info: ProposalHeaderInfo) {
   return new Footer({
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: companyName || "TenderDraft", size: 18, color: "888888" })],
+        children: [
+          new TextRun({ text: `${info.companyName}  •  ${info.contactDetails}  •  Page `, size: 16, color: "888888" }),
+          new TextRun({ children: [PageNumber.CURRENT], size: 16, color: "888888" }),
+          new TextRun({ text: " of ", size: 16, color: "888888" }),
+          new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: "888888" }),
+        ],
       }),
     ],
   });
@@ -133,6 +144,14 @@ function blockToDocxChildren(block: Block): Array<Paragraph | Table> {
       return [makeTable(block.headers, block.rows), new Paragraph({ text: "", spacing: { after: 160 } })];
     case "notice":
       return [makeNotice(block.title, block.text, block.items, block.variant === "warning"), new Paragraph({ text: "", spacing: { after: 160 } })];
+    case "checklist":
+      return block.items.map(
+        (item) =>
+          new Paragraph({
+            spacing: { after: 100 },
+            children: [new TextRun({ text: "☐  ", size: 24 }), new TextRun({ text: item, size: 20 })],
+          })
+      );
     case "signature":
       return [
         new Paragraph({ spacing: { before: 400, after: 100 }, children: [new TextRun({ text: "For the Bidder,", bold: true })] }),
@@ -149,14 +168,14 @@ function blockToDocxChildren(block: Block): Array<Paragraph | Table> {
 
 export async function generateDocxFromDocument(
   doc: ProposalDocument,
-  companyName: string
+  headerInfo: ProposalHeaderInfo
 ): Promise<Blob> {
   const children: Array<Paragraph | Table | TableOfContents> = [
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: 400 },
       children: [
-        new TextRun({ text: companyName || "Tender Proposal", bold: true, size: 36, color: NAVY }),
+        new TextRun({ text: headerInfo.companyName || "Tender Proposal", bold: true, size: 36, color: NAVY }),
       ],
     }),
     new Paragraph({
@@ -181,8 +200,8 @@ export async function generateDocxFromDocument(
     sections: [
       {
         properties: {},
-        headers: { default: brandHeader() },
-        footers: { default: brandFooter(companyName) },
+        headers: { default: proposalHeader(headerInfo) },
+        footers: { default: proposalFooter(headerInfo) },
         children,
       },
     ],

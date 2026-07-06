@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, Lock } from "lucide-react";
 import DocumentUploader from "@/components/DocumentUploader";
 import ProposalPanel from "@/components/ProposalPanel";
 import { ToastStack, ToastData } from "@/components/Toast";
 import type { CompanyProfile } from "@/lib/types";
 import type { ProposalDocument } from "@/lib/proposalDocument";
+import { buildHeaderInfo } from "@/lib/proposalDocument";
 
 const POLL_INTERVAL_MS = 1800;
 
@@ -17,9 +18,16 @@ const STAGE_LABELS: Record<string, string> = {
   assembled: "Reviewing compliance terms…",
 };
 
-export default function AppWorkspace({ profile }: { profile: CompanyProfile }) {
+export default function AppWorkspace({
+  profile,
+  isActive,
+}: {
+  profile: CompanyProfile;
+  isActive: boolean;
+}) {
   const [files, setFiles] = useState<File[]>([]);
   const [specUrl, setSpecUrl] = useState("");
+  const [additionalInstructions, setAdditionalInstructions] = useState("");
   const [proposalDocument, setProposalDocument] = useState<ProposalDocument | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progressLabel, setProgressLabel] = useState<string>("");
@@ -27,6 +35,8 @@ export default function AppWorkspace({ profile }: { profile: CompanyProfile }) {
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const toastId = useRef(0);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const headerInfo = useMemo(() => buildHeaderInfo(profile), [profile]);
 
   useEffect(() => {
     return () => {
@@ -84,6 +94,8 @@ export default function AppWorkspace({ profile }: { profile: CompanyProfile }) {
   };
 
   const handleGenerate = async () => {
+    if (!isActive) return;
+
     if (files.length === 0) {
       setFilesError("Upload at least one tender document (PDF) to continue.");
       return;
@@ -98,6 +110,9 @@ export default function AppWorkspace({ profile }: { profile: CompanyProfile }) {
       const formData = new FormData();
       if (specUrl.trim()) {
         formData.append("specUrl", specUrl.trim());
+      }
+      if (additionalInstructions.trim()) {
+        formData.append("additionalInstructions", additionalInstructions.trim());
       }
       files.forEach((file) => formData.append("files", file));
 
@@ -141,19 +156,36 @@ export default function AppWorkspace({ profile }: { profile: CompanyProfile }) {
             onFilesChange={setFiles}
             specUrl={specUrl}
             onSpecUrlChange={setSpecUrl}
+            additionalInstructions={additionalInstructions}
+            onAdditionalInstructionsChange={setAdditionalInstructions}
             error={filesErrorMsg}
           />
+
+          {!isActive && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3.5 text-sm text-red-200">
+              <Lock className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                Your account is being activated. Complete payment and contact us on WhatsApp to
+                start generating proposals.
+              </span>
+            </div>
+          )}
 
           <button
             type="button"
             onClick={handleGenerate}
-            disabled={isGenerating}
-            className="inline-flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-b from-gold-light to-gold px-6 py-4 text-sm font-semibold text-navy shadow-[0_1px_0_rgba(255,255,255,0.5)_inset,0_8px_24px_-6px_rgba(201,168,76,0.5)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_1px_0_rgba(255,255,255,0.5)_inset,0_12px_32px_-6px_rgba(201,168,76,0.65)] disabled:cursor-not-allowed disabled:opacity-80 disabled:hover:translate-y-0"
+            disabled={isGenerating || !isActive}
+            className="inline-flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-b from-gold-light to-gold px-6 py-4 text-sm font-semibold text-navy shadow-[0_1px_0_rgba(255,255,255,0.5)_inset,0_8px_24px_-6px_rgba(201,168,76,0.5)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_1px_0_rgba(255,255,255,0.5)_inset,0_12px_32px_-6px_rgba(201,168,76,0.65)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
           >
             {isGenerating ? (
               <>
                 <Loader2 className="h-[18px] w-[18px] animate-spin" />
                 {progressLabel || "Generating…"}
+              </>
+            ) : !isActive ? (
+              <>
+                <Lock className="h-[18px] w-[18px]" />
+                Generate Proposal
               </>
             ) : (
               <>
@@ -168,7 +200,7 @@ export default function AppWorkspace({ profile }: { profile: CompanyProfile }) {
           <ProposalPanel
             proposalDocument={proposalDocument}
             isGenerating={isGenerating}
-            companyName={profile.companyName}
+            headerInfo={headerInfo}
             onNotify={notify}
           />
         </div>
