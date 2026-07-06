@@ -1,85 +1,109 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Loader2, AlertCircle, BadgeCheck } from "lucide-react";
+import { ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import AuthShell from "@/components/auth/AuthShell";
 import PasswordInput from "@/components/auth/PasswordInput";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { fetchCompanyProfile } from "@/lib/supabase/db";
+
+// How long to wait for Supabase's PASSWORD_RECOVERY event before concluding
+// the link is missing/invalid rather than just slow to exchange.
+const RECOVERY_WAIT_MS = 6000;
+
+type LinkState = "verifying" | "ready" | "invalid";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
+  const [linkState, setLinkState] = useState<LinkState>(
+    isSupabaseConfigured ? "verifying" : "invalid"
+  );
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [linkInvalid, setLinkInvalid] = useState(false);
-  const [done, setDone] = useState(false);
+  const resolvedRef = useRef(false);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
-    // Clicking the emailed reset link lands here with a recovery token in the
-    // URL. Creating the client as early as possible (on mount, before the user
-    // does anything) lets Supabase's built-in detectSessionInUrl exchange that
-    // token for a temporary recovery session before handleSubmit runs.
     const supabase = createClient();
-    const { data } = supabase.auth.onAuthStateChange(() => {});
-    return () => data.subscription.unsubscribe();
+
+    // Clicking the emailed reset link lands here with a recovery code in the
+    // URL. Supabase's client exchanges it for a session automatically and
+    // fires PASSWORD_RECOVERY once that's done - only then do we know it's
+    // safe to show the "set a new password" form. If a session already
+    // existed from a race (event fired before this listener attached),
+    // getSession() below catches it as a fallback.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        resolvedRef.current = true;
+        setLinkState("ready");
+      }
+    });
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!resolvedRef.current && data.session) {
+        resolvedRef.current = true;
+        setLinkState("ready");
+      }
+    });
+
+    const timeout = setTimeout(() => {
+      if (!resolvedRef.current) setLinkState("invalid");
+    }, RECOVERY_WAIT_MS);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!isSupabaseConfigured) {
-      setError(
-        "Supabase isn't configured yet. Add your project URL and anon key to .env.local to enable password resets."
-      );
-      return;
-    }
-
     if (password.length < 6) {
       setError("Password must be at least 6 characters.");
       return;
     }
-
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     const supabase = createClient();
     const { error: updateError } = await supabase.auth.updateUser({ password });
 
     if (updateError) {
-      setLoading(false);
-      if (/session|token|expired|invalid/i.test(updateError.message)) {
-        setLinkInvalid(true);
-      } else {
-        setError(updateError.message);
-      }
+      setSubmitting(false);
+      setError(updateError.message);
       return;
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    const profile = user ? await fetchCompanyProfile(supabase, user.id) : null;
-    setLoading(false);
-    setDone(true);
-
-    setTimeout(() => {
-      router.push(profile ? "/dashboard" : "/onboarding");
-      router.refresh();
-    }, 1500);
+    // Don't leave them signed in on the recovery session - send them to a
+    // fresh login with their new password so there's no ambiguity about
+    // whether the reset "took".
+    await supabase.auth.signOut();
+    router.push("/login?reset=success");
   };
 
-  if (linkInvalid) {
+  if (linkState === "verifying") {
+    return (
+      <AuthShell title="Verifying your reset link" subtitle="This will just take a moment">
+        <div className="flex flex-col items-center py-6 text-center">
+          <Loader2 className="h-6 w-6 animate-spin text-white/40" />
+        </div>
+      </AuthShell>
+    );
+  }
+
+  if (linkState === "invalid") {
     return (
       <AuthShell title="Link expired" subtitle="This password reset link is invalid or has expired">
         <div className="flex flex-col items-center text-center">
@@ -97,22 +121,6 @@ export default function ResetPasswordPage() {
             Request New Link
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
-        </div>
-      </AuthShell>
-    );
-  }
-
-  if (done) {
-    return (
-      <AuthShell title="Password updated" subtitle="Taking you to your dashboard">
-        <div className="flex flex-col items-center text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gold/10 ring-1 ring-gold/30">
-            <BadgeCheck className="h-6 w-6 text-gold" strokeWidth={1.75} />
-          </div>
-          <p className="mt-5 text-sm leading-relaxed text-white/60">
-            Your password has been changed successfully.
-          </p>
-          <Loader2 className="mt-6 h-5 w-5 animate-spin text-white/40" />
         </div>
       </AuthShell>
     );
@@ -154,10 +162,10 @@ export default function ResetPasswordPage() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={submitting}
           className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-gold-light to-gold px-6 py-3 text-sm font-semibold text-navy shadow-[0_1px_0_rgba(255,255,255,0.5)_inset,0_8px_24px_-6px_rgba(201,168,76,0.5)] transition-all duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {loading ? (
+          {submitting ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <>

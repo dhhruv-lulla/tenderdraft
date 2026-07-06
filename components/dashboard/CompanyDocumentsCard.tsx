@@ -29,7 +29,14 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function CompanyDocumentsCard({ userId }: { userId: string }) {
+export default function CompanyDocumentsCard({
+  userId,
+  embedded = false,
+}: {
+  userId: string;
+  /** Skip the outer card chrome + header when rendered inside another step/card (e.g. onboarding). */
+  embedded?: boolean;
+}) {
   const [documents, setDocuments] = useState<CompanyDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [label, setLabel] = useState(LABEL_OPTIONS[0]);
@@ -104,21 +111,8 @@ export default function CompanyDocumentsCard({ userId }: { userId: string }) {
     else setError("Could not generate a download link. Please try again.");
   };
 
-  return (
-    <div className="glass shadow-premium mt-8 rounded-2xl p-7">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold/10 text-gold ring-1 ring-gold/25">
-          <FolderOpen className="h-5 w-5" strokeWidth={1.75} />
-        </span>
-        <div>
-          <h2 className="text-base font-semibold text-white">Company Documents</h2>
-          <p className="text-xs text-white/40">
-            Keep GST/Udyam/ISO certificates, PAN, bank details, and past purchase orders on
-            hand for attaching to bids.
-          </p>
-        </div>
-      </div>
-
+  const body = (
+    <>
       {error && (
         <div className="mt-4 rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-200">
           {error}
@@ -229,6 +223,26 @@ export default function CompanyDocumentsCard({ userId }: { userId: string }) {
           </div>
         )}
       </div>
+    </>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <div className="glass shadow-premium mt-8 rounded-2xl p-7">
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold/10 text-gold ring-1 ring-gold/25">
+          <FolderOpen className="h-5 w-5" strokeWidth={1.75} />
+        </span>
+        <div>
+          <h2 className="text-base font-semibold text-white">Company Documents</h2>
+          <p className="text-xs text-white/40">
+            Keep GST/Udyam/ISO certificates, PAN, bank details, and past purchase orders on
+            hand for attaching to bids.
+          </p>
+        </div>
+      </div>
+      {body}
     </div>
   );
 }

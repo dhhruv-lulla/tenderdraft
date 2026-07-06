@@ -14,8 +14,10 @@ import {
   LayoutDashboard,
   IndianRupee,
   Landmark,
+  FolderOpen,
 } from "lucide-react";
 import StepIndicator from "@/components/onboarding/StepIndicator";
+import CompanyDocumentsCard from "@/components/dashboard/CompanyDocumentsCard";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { fetchCompanyProfile, saveCompanyProfile } from "@/lib/supabase/db";
@@ -27,6 +29,7 @@ const STEPS = [
   "Financial Standing",
   "Legal & Banking",
   "Past Projects",
+  "Company Documents",
 ];
 const MAX_PROJECTS = 5;
 const MAX_BOARD_MEMBERS = 10;
@@ -52,6 +55,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [profile, setProfile] = useState<CompanyProfile>(emptyProfile);
+  const [userId, setUserId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -61,6 +65,7 @@ export default function OnboardingPage() {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return;
+      setUserId(data.user.id);
       const existing = await fetchCompanyProfile(supabase, data.user.id);
       if (existing) {
         setProfile(
@@ -622,6 +627,29 @@ export default function OnboardingPage() {
             </div>
           )}
 
+          {step === 5 && (
+            <div className="flex flex-col gap-5">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold/10 text-gold ring-1 ring-gold/25">
+                  <FolderOpen className="h-4 w-4" strokeWidth={1.75} />
+                </span>
+                <h2 className="text-base font-semibold text-white">Company Documents</h2>
+              </div>
+              <p className="text-xs text-white/45">
+                Upload your GST/Udyam/ISO certificates, PAN, bank details, and past purchase
+                orders now, or skip and add them anytime from your dashboard. These stay attached
+                to your account for reference when preparing bids.
+              </p>
+              {userId ? (
+                <CompanyDocumentsCard userId={userId} embedded />
+              ) : (
+                <p className="rounded-lg border border-dashed border-white/15 px-4 py-6 text-center text-sm text-white/40">
+                  Sign in to upload documents.
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="mt-9 flex items-center justify-between border-t border-white/10 pt-6">
             <button
               onClick={handleBack}
@@ -633,7 +661,7 @@ export default function OnboardingPage() {
             </button>
 
             <div className="flex items-center gap-4">
-              {(step === 2 || step === 3) && (
+              {(step === 2 || step === 3 || step === 5) && (
                 <button type="button" onClick={handleNext} className={skipButtonClass()}>
                   Skip (not available yet)
                 </button>

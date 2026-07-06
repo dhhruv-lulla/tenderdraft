@@ -57,6 +57,11 @@ const ENRICHMENT_SCHEMA = {
 } as const;
 
 function buildPrompt(tender: TenderData, profile: CompanyProfile, additionalInstructions?: string | null) {
+  // Split deliberately: knownFacts changes only when the user edits their
+  // company profile, so it's the stable prefix we cache. Everything derived
+  // from *this* tender (eligibility flags, terms, instructions) changes on
+  // every call and must stay out of the cached block or every request would
+  // be a cache miss anyway.
   const knownFacts = {
     companyName: profile.companyName || null,
     yearsInOperation: profile.yearsInOperation || null,
@@ -71,6 +76,12 @@ function buildPrompt(tender: TenderData, profile: CompanyProfile, additionalInst
       outcome: p.outcome || null,
     })),
   };
+
+  const stableText = `Known bidder facts (apply to every tender for this bidder):\n${JSON.stringify(
+    knownFacts,
+    null,
+    2
+  )}`;
 
   const eligibilityItems = Object.entries(tender.specialConditions)
     .filter(([, flag]) => flag.present)
@@ -92,18 +103,17 @@ function buildPrompt(tender: TenderData, profile: CompanyProfile, additionalInst
     ...tender.buyerAddedTerms.map((t, i) => ({ id: `term-${i}`, term: t.term, detail: t.category || "" })),
   ].filter((x): x is { id: string; term: string; detail: string } => x !== null);
 
-  const userText = JSON.stringify(
+  const variableText = `This tender's items to note:\n${JSON.stringify(
     {
-      knownBidderFacts: knownFacts,
       eligibilityConditionsToNote: eligibilityItems,
       termsToNote: termsItems,
       additionalInstructions: additionalInstructions?.trim() || null,
     },
     null,
     2
-  );
+  )}\n\nWrite the compliance notes and (if applicable) the covering letter note now, following the required schema exactly, using the same "id" values given above.`;
 
-  return { userText, eligibilityItems, termsItems, hasInstructions: Boolean(additionalInstructions?.trim()) };
+  return { stableText, variableText, eligibilityItems, termsItems, hasInstructions: Boolean(additionalInstructions?.trim()) };
 }
 
 export async function enrichCompliance(
@@ -112,7 +122,7 @@ export async function enrichCompliance(
   additionalInstructions?: string | null
 ): Promise<ComplianceEnrichment | null> {
   try {
-    const { userText, eligibilityItems, termsItems, hasInstructions } = buildPrompt(
+    const { stableText, variableText, eligibilityItems, termsItems, hasInstructions } = buildPrompt(
       tender,
       profile,
       additionalInstructions
@@ -124,14 +134,25 @@ export async function enrichCompliance(
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+    // Two cache breakpoints: the system prompt (identical for every user/call)
+    // and the bidder's known facts (identical across every tender for that
+    // bidder, until they edit their profile). Anthropic caches the whole
+    // prefix up to each marked block, so the second breakpoint covers
+    // system+profile together. Below the model's minimum cacheable prefix
+    // size this is a harmless no-op (no cache write premium is charged) - it
+    // only pays off once a bidder's profile pushes the prefix past that
+    // threshold, or across enough repeated calls within the cache TTL.
     const message = await anthropic.messages.parse({
       model: "claude-haiku-4-5",
       max_tokens: 2000,
-      system: SYSTEM_PROMPT,
+      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
       messages: [
         {
           role: "user",
-          content: `Here is the known data:\n${userText}\n\nWrite the compliance notes and (if applicable) the covering letter note now, following the required schema exactly, using the same "id" values given above.`,
+          content: [
+            { type: "text", text: stableText, cache_control: { type: "ephemeral" } },
+            { type: "text", text: variableText },
+          ],
         },
       ],
       output_config: {
