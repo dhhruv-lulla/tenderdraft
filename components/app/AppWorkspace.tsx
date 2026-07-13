@@ -11,6 +11,12 @@ import type { ProposalDocument } from "@/lib/proposalDocument";
 import { buildHeaderInfo } from "@/lib/proposalDocument";
 
 const POLL_INTERVAL_MS = 1800;
+// Generous upper bound on total polling time, covering a full 3-stage run
+// plus one server-side stale-job recovery cycle (see STALE_CLAIM_MS in the
+// step route). If we're still polling past this, something is genuinely
+// wrong server-side rather than just slow - stop and tell the user instead
+// of spinning forever.
+const MAX_POLL_MS = 5 * 60 * 1000;
 
 const STAGE_LABELS: Record<string, string> = {
   queued: "Parsing tender document…",
@@ -92,9 +98,21 @@ export default function AppWorkspace({
 
   const pollJob = (jobId: string) => {
     pollAbortRef.current = false;
+    const startedAt = Date.now();
 
     const tick = async () => {
       if (pollAbortRef.current) return;
+
+      if (Date.now() - startedAt > MAX_POLL_MS) {
+        stopPolling();
+        setGenerating(false);
+        setProgressLabel("");
+        notify(
+          "This is taking much longer than expected. Check your dashboard in a minute - it may still complete - or try generating again.",
+          "error"
+        );
+        return;
+      }
 
       try {
         const res = await fetch(`/api/jobs/${jobId}/step`, { method: "POST" });

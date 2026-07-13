@@ -42,10 +42,11 @@ export interface GenerationJob {
   proposalText: string | null;
   companyNameSnapshot: string;
   resultProposalId: string | null;
+  updatedAt: string;
 }
 
 const JOB_COLUMNS =
-  "id, status, error_message, input_profile, input_spec_url, input_files, additional_instructions, tender_data, proposal_json, proposal_text, company_name_snapshot, result_proposal_id";
+  "id, status, error_message, input_profile, input_spec_url, input_files, additional_instructions, tender_data, proposal_json, proposal_text, company_name_snapshot, result_proposal_id, updated_at";
 
 interface JobRow {
   id: string;
@@ -60,6 +61,7 @@ interface JobRow {
   proposal_text: string | null;
   company_name_snapshot: string;
   result_proposal_id: string | null;
+  updated_at: string;
 }
 
 function rowToJob(row: JobRow): GenerationJob {
@@ -76,6 +78,7 @@ function rowToJob(row: JobRow): GenerationJob {
     proposalText: row.proposal_text,
     companyNameSnapshot: row.company_name_snapshot,
     resultProposalId: row.result_proposal_id,
+    updatedAt: row.updated_at,
   };
 }
 

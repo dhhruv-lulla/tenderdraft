@@ -11,6 +11,16 @@ import { flattenToText } from "@/lib/proposalDocument";
 export const runtime = "nodejs";
 export const maxDuration = 55;
 
+// How long a job may sit in an in-flight state before we treat the request
+// that claimed it as dead (function timeout, crash, platform blip) rather
+// than just slow. Comfortably above maxDuration + network/cold-start
+// overhead, so it never races a request that's still genuinely running.
+const STALE_CLAIM_MS = 80_000;
+
+function isStale(job: { updatedAt: string }): boolean {
+  return Date.now() - new Date(job.updatedAt).getTime() > STALE_CLAIM_MS;
+}
+
 export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -31,19 +41,55 @@ export async function POST(
     return NextResponse.json({ error: "Generation job not found." }, { status: 404 });
   }
 
-  // Terminal or already-claimed-by-another-request: just report current
-  // state. In particular, "extracting"/"assembling"/"enriching" mean some
-  // other request (an overlapping poll, a second tab, a retry) is already
-  // doing the work for this stage - doing it again here would duplicate a
-  // Claude call, which is exactly the bug this route used to have.
+  // Terminal or already-claimed-by-another-request: normally just report
+  // current state - some other request (an overlapping poll, a second tab, a
+  // retry) is already doing the work for this stage, and doing it again here
+  // would duplicate a Claude call, which is exactly the bug this route used
+  // to have. The exception is a claim that's gone stale (the request that
+  // made it died mid-stage): left alone that would leave the job stuck
+  // forever, so we recover it - but only where recovery is actually safe.
   if (job.status !== "queued" && job.status !== "extracted" && job.status !== "assembled") {
+    if (job.status === "extracting" && isStale(job)) {
+      // No side effects beyond a Claude call and overwriting tenderData -
+      // safe to just re-claim from scratch.
+      const reclaimed = await claimJobStage(supabase, user.id, id, "extracting", "queued");
+      if (reclaimed) return NextResponse.json({ status: "queued" });
+    }
+
+    if (job.status === "assembling" && isStale(job)) {
+      // Pure function, no external side effects - safe to re-claim.
+      const reclaimed = await claimJobStage(supabase, user.id, id, "assembling", "extracted");
+      if (reclaimed) return NextResponse.json({ status: "extracted" });
+    }
+
+    if (job.status === "enriching" && isStale(job)) {
+      // NOT safe to blindly retry: this stage calls insertProposal, a plain
+      // INSERT with no dedup key. If the dead request had already created
+      // the proposal row before dying, auto-retrying would create a second
+      // one. Surface it instead - the user can check their dashboard (the
+      // proposal may already be there) or just generate again.
+      const reclaimed = await claimJobStage(supabase, user.id, id, "enriching", "error");
+      if (reclaimed) {
+        await updateGenerationJob(supabase, user.id, id, {
+          errorMessage:
+            "Generation timed out while finalizing your proposal. Check your dashboard - it may have already been saved - otherwise try generating again.",
+        });
+        return NextResponse.json({
+          status: "error",
+          errorMessage:
+            "Generation timed out while finalizing your proposal. Check your dashboard - it may have already been saved - otherwise try generating again.",
+        });
+      }
+    }
+
+    const fresh = await fetchGenerationJob(supabase, user.id, id);
     return NextResponse.json({
-      status: job.status,
-      errorMessage: job.errorMessage,
-      tenderData: job.tenderData,
-      proposalDocument: job.proposalJson,
-      proposalText: job.proposalText,
-      resultProposalId: job.resultProposalId,
+      status: fresh?.status ?? job.status,
+      errorMessage: fresh?.errorMessage ?? job.errorMessage,
+      tenderData: fresh?.tenderData ?? job.tenderData,
+      proposalDocument: fresh?.proposalJson ?? job.proposalJson,
+      proposalText: fresh?.proposalText ?? job.proposalText,
+      resultProposalId: fresh?.resultProposalId ?? job.resultProposalId,
     });
   }
 
