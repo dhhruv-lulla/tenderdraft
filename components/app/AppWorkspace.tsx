@@ -14,8 +14,11 @@ const POLL_INTERVAL_MS = 1800;
 
 const STAGE_LABELS: Record<string, string> = {
   queued: "Parsing tender document…",
+  extracting: "Parsing tender document…",
   extracted: "Building your proposal…",
+  assembling: "Building your proposal…",
   assembled: "Reviewing compliance terms…",
+  enriching: "Reviewing compliance terms…",
 };
 
 export default function AppWorkspace({
@@ -34,13 +37,34 @@ export default function AppWorkspace({
   const [filesErrorMsg, setFilesError] = useState<string | undefined>();
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const toastId = useRef(0);
-  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // A ref, not just the `isGenerating` state, because state updates aren't
+  // visible synchronously - two clicks in the same tick (fast double-click,
+  // double-tap on mobile, a stray keyboard Enter alongside a click) could
+  // both read `isGenerating === false` before React re-renders the disabled
+  // button, and each would POST /api/jobs, creating two separate generation
+  // jobs. The ref is set synchronously before anything async happens, so a
+  // second call in the same tick sees it immediately and bails out.
+  const isGeneratingRef = useRef(false);
+  // Guards the poll loop itself: only one fetch to the step endpoint is ever
+  // in flight at a time, and the next poll is scheduled only after the
+  // previous one resolves (see pollJob below). A plain setInterval here was
+  // the actual cause of the token blowup - it doesn't wait for its async
+  // callback, so on every generation where a poll tick took longer than
+  // POLL_INTERVAL_MS (normal for a real Claude call on a PDF), the next tick
+  // fired anyway, saw the job still "queued" in the DB, and re-ran the full
+  // extraction call concurrently. Sequential polling here is the client-side
+  // half of the fix; claimJobStage on the server is the half that actually
+  // guarantees it can't happen even across tabs/retries.
+  const pollAbortRef = useRef(false);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const headerInfo = useMemo(() => buildHeaderInfo(profile), [profile]);
 
   useEffect(() => {
     return () => {
-      if (pollTimer.current) clearInterval(pollTimer.current);
+      pollAbortRef.current = true;
+      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
     };
   }, []);
 
@@ -53,22 +77,34 @@ export default function AppWorkspace({
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  const setGenerating = (value: boolean) => {
+    isGeneratingRef.current = value;
+    setIsGenerating(value);
+  };
+
   const stopPolling = () => {
-    if (pollTimer.current) {
-      clearInterval(pollTimer.current);
-      pollTimer.current = null;
+    pollAbortRef.current = true;
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
     }
   };
 
   const pollJob = (jobId: string) => {
-    pollTimer.current = setInterval(async () => {
+    pollAbortRef.current = false;
+
+    const tick = async () => {
+      if (pollAbortRef.current) return;
+
       try {
         const res = await fetch(`/api/jobs/${jobId}/step`, { method: "POST" });
         const data = await res.json();
 
+        if (pollAbortRef.current) return; // stopped while this fetch was in flight
+
         if (!res.ok || data.status === "error") {
           stopPolling();
-          setIsGenerating(false);
+          setGenerating(false);
           setProgressLabel("");
           notify(data.errorMessage || data.error || "Failed to generate proposal.", "error");
           return;
@@ -76,7 +112,7 @@ export default function AppWorkspace({
 
         if (data.status === "complete") {
           stopPolling();
-          setIsGenerating(false);
+          setGenerating(false);
           setProgressLabel("");
           setProposalDocument(data.proposalDocument);
           notify(
@@ -88,13 +124,19 @@ export default function AppWorkspace({
 
         setProgressLabel(STAGE_LABELS[data.status] || "Working on your proposal…");
       } catch {
-        // Transient network error on a poll tick — let the next tick retry.
+        // Transient network error on a poll tick — fall through and retry.
       }
-    }, POLL_INTERVAL_MS);
+
+      if (!pollAbortRef.current) {
+        pollTimeoutRef.current = setTimeout(tick, POLL_INTERVAL_MS);
+      }
+    };
+
+    tick();
   };
 
   const handleGenerate = async () => {
-    if (!isActive) return;
+    if (!isActive || isGeneratingRef.current) return;
 
     if (files.length === 0) {
       setFilesError("Upload at least one tender document (PDF) to continue.");
@@ -102,7 +144,7 @@ export default function AppWorkspace({
     }
     setFilesError(undefined);
 
-    setIsGenerating(true);
+    setGenerating(true);
     setProposalDocument(null);
     setProgressLabel(STAGE_LABELS.queued);
 
@@ -127,7 +169,7 @@ export default function AppWorkspace({
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to generate proposal.";
       notify(message, "error");
-      setIsGenerating(false);
+      setGenerating(false);
       setProgressLabel("");
     }
   };

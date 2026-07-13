@@ -5,7 +5,24 @@ import type { TenderData } from "@/lib/tenderData";
 
 export const GENERATION_JOBS_TABLE = "generation_jobs";
 
-export type JobStatus = "queued" | "extracted" | "assembled" | "complete" | "error";
+// "extracting" / "assembling" / "enriching" are in-flight claim states: a
+// request must atomically flip the job into one of these via claimJobStage()
+// before starting the expensive (LLM-calling) work for that stage. A
+// concurrent request - from an overlapping poll, a second browser tab, or a
+// client retry after a dropped connection - that arrives while the job is
+// already in a claim state finds nothing to claim and just reports current
+// status instead of redoing the work. This is what actually prevents
+// duplicate Claude calls; client-side polling discipline is a complementary
+// optimization, not a substitute for this.
+export type JobStatus =
+  | "queued"
+  | "extracting"
+  | "extracted"
+  | "assembling"
+  | "assembled"
+  | "enriching"
+  | "complete"
+  | "error";
 
 export interface GenerationJobFile {
   name: string;
@@ -105,6 +122,33 @@ export async function fetchGenerationJob(
 
   if (error || !data) return null;
   return rowToJob(data as JobRow);
+}
+
+/**
+ * Atomically move a job from `fromStatus` to `toStatus`, but only if it is
+ * still at `fromStatus` right now. The `.eq("status", fromStatus)` makes this
+ * a single conditional UPDATE at the database level, so when two requests
+ * race, exactly one of them gets rows back (claimed === true) and the other
+ * gets zero rows back (claimed === false) - there is no window where both
+ * can believe they own the stage. Callers must only do the expensive work
+ * (the Claude call) after `claimed` comes back true.
+ */
+export async function claimJobStage(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string,
+  fromStatus: JobStatus,
+  toStatus: JobStatus
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from(GENERATION_JOBS_TABLE)
+    .update({ status: toStatus, updated_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .eq("id", id)
+    .eq("status", fromStatus)
+    .select("id");
+
+  return !error && Array.isArray(data) && data.length > 0;
 }
 
 export interface UpdateGenerationJobInput {
