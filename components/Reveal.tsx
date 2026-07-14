@@ -9,7 +9,11 @@ interface Props {
   className?: string;
 }
 
-export default function Reveal({ children, as: Tag = "div", delay = 0, className }: Props) {
+export default function Reveal({ children, as = "div", delay = 0, className }: Props) {
+  // @types/react 19.2+ resolves JSX props of a bare ElementType to `never`,
+  // so narrow the tag for type-checking. Only plain HTML tags are ever
+  // passed here (current callers pass none), and they all accept div props.
+  const Tag = as as "div";
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 

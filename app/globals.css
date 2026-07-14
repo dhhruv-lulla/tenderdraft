@@ -236,3 +236,141 @@ body {
   background-size: 400% 100%;
   animation: shimmer 2.2s ease-in-out infinite;
 }
+
+/* ---------------------------------------------------------------- */
+/* Landing page (marketing) utilities                                */
+/* ---------------------------------------------------------------- */
+
+/* Faint blueprint grid that fades out radially, used behind the hero */
+.bg-grid-gold {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 35%, black 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse 75% 65% at 50% 35%, black 30%, transparent 75%);
+}
+
+/* Cursor spotlight for bento cards. JS sets --mx/--my in px on mousemove. */
+.spotlight-card {
+  position: relative;
+  overflow: hidden;
+}
+.spotlight-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  background: radial-gradient(
+    380px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(201, 168, 76, 0.1),
+    transparent 65%
+  );
+}
+.spotlight-card:hover::after {
+  opacity: 1;
+}
+
+/* Gold shine sweep across primary buttons on hover */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+.btn-shine::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -75%;
+  width: 50%;
+  transform: skewX(-20deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transition: left 0.6s ease;
+  pointer-events: none;
+}
+.btn-shine:hover::before {
+  left: 125%;
+}
+
+/* Gold light sweep across the 2D fallback proposal card */
+.shimmer-gold {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer-gold::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(201, 168, 76, 0.16) 50%,
+    transparent 60%
+  );
+  background-size: 250% 100%;
+  animation: shimmer 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Slow rotating conic glow, used behind the 2D fallback ring */
+@keyframes ring-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.ring-conic {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(201, 168, 76, 0.5) 60deg,
+    transparent 140deg,
+    transparent 240deg,
+    rgba(201, 168, 76, 0.28) 300deg,
+    transparent 360deg
+  );
+  animation: ring-rotate 9s linear infinite;
+}
+
+/* Ambient floating gold dots for the 2D fallback */
+@keyframes dot-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translate3d(6px, -14px, 0);
+    opacity: 0.9;
+  }
+}
+.landing-dot {
+  animation: dot-drift 6s ease-in-out infinite;
+}
+
+/* Dashed flow line animation for the how-it-works illustrations */
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+.dash-flow {
+  animation: dash-flow 1.2s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring-conic,
+  .landing-dot,
+  .dash-flow,
+  .shimmer-gold::after {
+    animation: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
