@@ -266,12 +266,26 @@ export default function HowItWorks() {
   });
 
   const ActiveIllo = ILLUSTRATIONS[active];
+  const isLastStep = active === STEPS.length - 1;
+
+  // Jumps the page to the scroll position that drives the next step, since
+  // this section scroll-jacks and visitors otherwise can't tell they need
+  // to keep scrolling inside it to see the rest of the walkthrough.
+  const scrollToStep = (index: number) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const trackTop = window.scrollY + el.getBoundingClientRect().top;
+    const trackHeight = el.offsetHeight;
+    const v = (index + 0.5) / STEPS.length;
+    const target = trackTop + v * (trackHeight - window.innerHeight);
+    window.scrollTo({ top: target, behavior: "smooth" });
+  };
 
   return (
     <section id="how-it-works" className="relative scroll-mt-16">
       {/* Desktop: scroll-driven sticky walkthrough */}
       <div ref={trackRef} className="hidden lg:block" style={{ height: `${STEPS.length * 88}vh` }}>
-        <div className="sticky top-0 flex h-screen items-center overflow-hidden">
+        <div className="relative sticky top-0 flex h-screen items-center overflow-hidden">
           <div className="mx-auto grid w-full max-w-7xl grid-cols-2 items-center gap-16 px-8">
             <div>
               <SectionHeading
@@ -334,6 +348,30 @@ export default function HowItWorks() {
               </AnimatePresence>
             </div>
           </div>
+
+          <motion.button
+            type="button"
+            onClick={() => scrollToStep(Math.min(active + 1, STEPS.length - 1))}
+            animate={{ opacity: isLastStep ? 0 : 1 }}
+            transition={{ duration: 0.4 }}
+            aria-hidden={isLastStep}
+            tabIndex={isLastStep ? -1 : 0}
+            aria-label="Scroll to next step"
+            className={`group absolute bottom-8 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2.5 ${
+              isLastStep ? "pointer-events-none" : ""
+            }`}
+          >
+            <span className="text-[11px] font-medium uppercase tracking-widest text-white/40 transition-colors duration-300 group-hover:text-gold">
+              Keep scrolling
+            </span>
+            <span className="flex h-10 w-6 items-start justify-center rounded-full border border-white/20 p-1.5 transition-colors duration-300 group-hover:border-gold/50">
+              <motion.span
+                className="h-1.5 w-1.5 rounded-full bg-gold"
+                animate={{ y: [0, 16, 0], opacity: [1, 0.2, 1] }}
+                transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+              />
+            </span>
+          </motion.button>
         </div>
       </div>
 
