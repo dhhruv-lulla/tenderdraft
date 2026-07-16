@@ -5,8 +5,10 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProposalDetailActions from "@/components/dashboard/ProposalDetailActions";
 import ProposalDocumentView from "@/components/ProposalDocumentView";
+import ComplianceDocumentsPanel from "@/components/ComplianceDocumentsPanel";
 import { createClient } from "@/lib/supabase/server";
 import { fetchProposal, fetchCompanyProfile } from "@/lib/supabase/db";
+import { fetchComplianceDocumentsByProposal } from "@/lib/supabase/complianceDocuments";
 import { parseProposal } from "@/lib/parseProposal";
 import { buildHeaderInfo } from "@/lib/proposalDocument";
 
@@ -34,6 +36,7 @@ export default async function ProposalDetailPage({
     notFound();
   }
 
+  const complianceDocuments = await fetchComplianceDocumentsByProposal(supabase, user.id, proposal.id);
   const blocks = proposal.proposalJson ? null : parseProposal(proposal.proposalText);
   const headerInfo = buildHeaderInfo(
     profile ?? { companyName: proposal.companyName, gstNumber: "", udyamNumber: "", registeredAddress: "" }
@@ -103,6 +106,8 @@ export default async function ProposalDetailPage({
             )}
           </div>
         </div>
+
+        <ComplianceDocumentsPanel documents={complianceDocuments} />
       </main>
 
       <Footer />

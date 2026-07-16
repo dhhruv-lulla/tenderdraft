@@ -451,6 +451,31 @@ export default function OnboardingPage() {
 
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
                 <span className="text-xs font-semibold uppercase tracking-wide text-gold-dark">
+                  Authorized Signatory
+                </span>
+                <p className="mt-1 text-xs text-white/40">
+                  Used to auto-fill the signature block on compliance declarations.
+                </p>
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <input
+                    type="text"
+                    value={profile.authorizedSignatoryName}
+                    onChange={(e) => setField("authorizedSignatoryName", e.target.value)}
+                    placeholder="Signatory Name"
+                    className={inputClass()}
+                  />
+                  <input
+                    type="text"
+                    value={profile.authorizedSignatoryDesignation}
+                    onChange={(e) => setField("authorizedSignatoryDesignation", e.target.value)}
+                    placeholder="Designation (e.g. Director, Proprietor)"
+                    className={inputClass()}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <span className="text-xs font-semibold uppercase tracking-wide text-gold-dark">
                   Bank Details
                 </span>
                 <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">

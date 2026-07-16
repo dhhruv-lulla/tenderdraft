@@ -15,7 +15,7 @@ export const COMPANY_PROFILES_TABLE = "company_profiles";
 export const PROPOSALS_TABLE = "proposals";
 
 const PROFILE_COLUMNS =
-  "company_name, years_in_operation, team_size, services_offered, gst_number, udyam_number, certifications, past_projects, financials, net_worth, total_assets, cin, pan, bank_details, registered_address, board_of_directors";
+  "company_name, years_in_operation, team_size, services_offered, gst_number, udyam_number, certifications, past_projects, financials, net_worth, total_assets, cin, pan, bank_details, registered_address, board_of_directors, authorized_signatory_name, authorized_signatory_designation";
 
 const PROPOSAL_COLUMNS = "id, title, proposal_text, company_name_snapshot, created_at, proposal_json, tender_data";
 
@@ -36,6 +36,8 @@ interface CompanyProfileRow {
   bank_details: BankDetails | null;
   registered_address: string | null;
   board_of_directors: BoardMember[] | null;
+  authorized_signatory_name: string | null;
+  authorized_signatory_designation: string | null;
 }
 
 interface ProposalRow {
@@ -66,6 +68,8 @@ function rowToProfile(row: CompanyProfileRow): CompanyProfile {
     bankDetails: row.bank_details || emptyBankDetails,
     registeredAddress: row.registered_address || "",
     boardOfDirectors: row.board_of_directors || [],
+    authorizedSignatoryName: row.authorized_signatory_name || "",
+    authorizedSignatoryDesignation: row.authorized_signatory_designation || "",
   };
 }
 
@@ -134,6 +138,8 @@ export async function saveCompanyProfile(
       bank_details: profile.bankDetails,
       registered_address: profile.registeredAddress,
       board_of_directors: profile.boardOfDirectors,
+      authorized_signatory_name: profile.authorizedSignatoryName,
+      authorized_signatory_designation: profile.authorizedSignatoryDesignation,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id" }

@@ -6,7 +6,11 @@ import { extractTenderData } from "@/lib/extractTender";
 import { fetchUrlText } from "@/lib/fetchUrlText";
 import { buildProposalDocument, applyComplianceEnrichment } from "@/lib/buildProposalDocument";
 import { enrichCompliance } from "@/lib/enrichCompliance";
-import { flattenToText } from "@/lib/proposalDocument";
+import { flattenToText, buildHeaderInfo } from "@/lib/proposalDocument";
+import { buildCompliancePack } from "@/lib/compliance/buildCompliancePack";
+import { generateComplianceLetterPdf } from "@/lib/compliance/letterPdf";
+import { generateComplianceLetterDocx } from "@/lib/compliance/letterDocx";
+import { upsertComplianceDocument, type ComplianceDocumentRecord } from "@/lib/supabase/complianceDocuments";
 
 export const runtime = "nodejs";
 export const maxDuration = 55;
@@ -48,7 +52,12 @@ export async function POST(
   // to have. The exception is a claim that's gone stale (the request that
   // made it died mid-stage): left alone that would leave the job stuck
   // forever, so we recover it - but only where recovery is actually safe.
-  if (job.status !== "queued" && job.status !== "extracted" && job.status !== "assembled") {
+  if (
+    job.status !== "queued" &&
+    job.status !== "extracted" &&
+    job.status !== "assembled" &&
+    job.status !== "enriched"
+  ) {
     if (job.status === "extracting" && isStale(job)) {
       // No side effects beyond a Claude call and overwriting tenderData -
       // safe to just re-claim from scratch.
@@ -80,6 +89,16 @@ export async function POST(
             "Generation timed out while finalizing your proposal. Check your dashboard - it may have already been saved - otherwise try generating again.",
         });
       }
+    }
+
+    if (job.status === "generating_documents" && isStale(job)) {
+      // Unlike enriching, this stage IS safe to auto-retry: every write it
+      // makes (storage uploads with upsert:true, and a DB upsert keyed on
+      // (generation_job_id, requirement_id)) is idempotent, so re-running it
+      // from scratch can only overwrite with an equivalent result, never
+      // duplicate anything.
+      const reclaimed = await claimJobStage(supabase, user.id, id, "generating_documents", "enriched");
+      if (reclaimed) return NextResponse.json({ status: "enriched" });
     }
 
     const fresh = await fetchGenerationJob(supabase, user.id, id);
@@ -173,19 +192,86 @@ export async function POST(
         tenderData: job.tenderData,
       });
 
+      // Deliberately "enriched", not "complete": the compliance document
+      // pack (built from this same already-extracted tenderData, no further
+      // PDF or full-profile calls) still needs to run as its own bounded
+      // stage before the job is truly done.
       await updateGenerationJob(supabase, user.id, id, {
-        status: "complete",
+        status: "enriched",
         proposalJson: finalDocument,
         proposalText: finalText,
         resultProposalId: proposal?.id ?? null,
       });
 
       return NextResponse.json({
-        status: "complete",
+        status: "enriched",
         proposalDocument: finalDocument,
         proposalText: finalText,
         resultProposalId: proposal?.id ?? null,
         saveWarning: error ? "Proposal generated, but saving to your dashboard failed." : undefined,
+      });
+    }
+
+    if (job.status === "enriched") {
+      const claimed = await claimJobStage(supabase, user.id, id, "enriched", "generating_documents");
+      if (!claimed) {
+        const fresh = await fetchGenerationJob(supabase, user.id, id);
+        return NextResponse.json({ status: fresh?.status ?? job.status });
+      }
+
+      if (!job.tenderData) {
+        throw new Error("Tender data is missing for an already-enriched job.");
+      }
+
+      // Standard declarations are pure template substitution (zero LLM
+      // calls); only genuinely non-standard ATC requirements cost one
+      // already-batched Haiku call here - never a re-send of the tender PDF
+      // or the full company profile (see buildCompliancePack).
+      const pack = await buildCompliancePack(job.tenderData, job.inputProfile);
+      const headerInfo = buildHeaderInfo(job.inputProfile);
+
+      const complianceDocuments: ComplianceDocumentRecord[] = [];
+      for (const item of pack) {
+        const [pdfBuffer, docxBlob] = await Promise.all([
+          generateComplianceLetterPdf(item.letter, headerInfo),
+          generateComplianceLetterDocx(item.letter, headerInfo),
+        ]);
+        const docxBuffer = Buffer.from(await docxBlob.arrayBuffer());
+        const fileBaseName = `${item.requirement.id}-${item.requirement.name}`
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 80);
+
+        const { record } = await upsertComplianceDocument(supabase, user.id, {
+          generationJobId: id,
+          proposalId: job.resultProposalId,
+          requirementId: item.requirement.id,
+          documentName: item.letter.documentName,
+          certificationType: item.requirement.certificationType,
+          externalAuthority: item.requirement.externalAuthority,
+          standardTemplate: item.requirement.standardTemplate,
+          needsCertification: item.requirement.certificationType === "external_certification",
+          placeholders: item.letter.placeholders,
+          pdfBuffer,
+          docxBuffer,
+          fileBaseName: fileBaseName || item.requirement.id,
+        });
+
+        // A single document failing to upload never fails the whole job -
+        // the proposal itself is already safely saved. Skip it; the rest of
+        // the pack still gets generated and the job still completes.
+        if (record) complianceDocuments.push(record);
+      }
+
+      await updateGenerationJob(supabase, user.id, id, { status: "complete" });
+
+      return NextResponse.json({
+        status: "complete",
+        proposalDocument: job.proposalJson,
+        proposalText: job.proposalText,
+        resultProposalId: job.resultProposalId,
+        complianceDocuments,
       });
     }
 

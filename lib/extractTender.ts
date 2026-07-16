@@ -14,7 +14,22 @@ const SYSTEM_PROMPT =
   "field - do not leave it out and do not make up a plausible-sounding value. For the specialConditions flags, " +
   "only set present:true if the tender text explicitly contains a clause establishing that condition, and quote " +
   "the exact source text verbatim in sourceQuote - do not paraphrase and do not set present:true without a " +
-  "supporting quote (leave sourceQuote as an empty string when present is false).";
+  "supporting quote (leave sourceQuote as an empty string when present is false)." +
+  "\n\nrequiredDocuments - this is critical and needs careful reading: in GeM tenders, the specific documents, " +
+  "declarations, certificates, and undertakings a bidder must submit are primarily specified in the tender's ATC " +
+  "(Additional Terms and Conditions / Buyer Added Terms and Conditions) section, and these requirements differ " +
+  "for every tender. Thoroughly read the ATC section (and any other section that imposes a submission " +
+  "requirement) and identify EVERY compliance document, declaration, certificate, or undertaking the bidder is " +
+  "required to submit - both common ones (e.g. Make in India / MII local content declaration, non-blacklisting " +
+  "declaration, bid security declaration, EMD exemption declaration, authorized signatory letter, warranty " +
+  "undertaking) and any tender-specific or unusual ones unique to this ATC. The ATC is the source of truth for " +
+  "what is required - do not rely on a generic fixed list, and do not invent a requirement that the tender text " +
+  "does not actually establish. For each one, classify it against the given standardTemplate enum if it matches " +
+  "a well-known GeM declaration format, using 'other' only when it is genuinely tender-specific with no standard " +
+  "format. Classify certificationType as 'external_certification' (not 'self_declaration') whenever the document " +
+  "requires certification by a Chartered Accountant (e.g. CA-certified financial statements/turnover above a " +
+  "threshold), an OEM/manufacturer (e.g. authorization or dealership letters), or a government authority " +
+  "(e.g. a government-issued certificate) - everything else the bidder can sign themselves is 'self_declaration'.";
 
 function buildUserContent(
   files: TenderFileInput[],
@@ -63,6 +78,8 @@ async function callExtraction(
       format: { type: "json_schema", schema: TENDER_JSON_SCHEMA },
     },
   });
+
+  if (process.env.TENDERDRAFT_DEBUG_TOKENS) console.log("[extractTenderData usage]", message.usage);
 
   return message.parsed_output;
 }

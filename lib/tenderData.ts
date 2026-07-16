@@ -26,6 +26,48 @@ export interface BuyerAddedTerm {
   category: string;
 }
 
+// A closed set of GeM declarations with a fixed, well-known legal format.
+// The extraction model only needs to *classify* a requirement against this
+// list (near-zero extra cost, same call) - matched ones are rendered by pure
+// template substitution with zero LLM calls; "other" is the only case that
+// needs a (batched, cheap) model call to draft bespoke wording.
+export type StandardDeclarationTemplate =
+  | "mii_declaration"
+  | "emd_exemption"
+  | "non_blacklisting"
+  | "bid_security_declaration"
+  | "atc_compliance_statement"
+  | "authorized_signatory"
+  | "warranty_undertaking"
+  | "land_border_declaration"
+  | "non_conviction_declaration"
+  | "integrity_pact"
+  | "other";
+
+export const STANDARD_DECLARATION_TEMPLATES: StandardDeclarationTemplate[] = [
+  "mii_declaration",
+  "emd_exemption",
+  "non_blacklisting",
+  "bid_security_declaration",
+  "atc_compliance_statement",
+  "authorized_signatory",
+  "warranty_undertaking",
+  "land_border_declaration",
+  "non_conviction_declaration",
+  "integrity_pact",
+  "other",
+];
+
+export interface RequiredDocument {
+  id: string;
+  name: string;
+  whatItMustContain: string;
+  certificationType: "self_declaration" | "external_certification";
+  externalAuthority: string;
+  standardTemplate: StandardDeclarationTemplate;
+  sourceQuote: string;
+}
+
 export interface TenderData {
   buyerOrganisation: string;
   department: string;
@@ -56,6 +98,7 @@ export interface TenderData {
     oneBidderOneBid: SpecialConditionFlag;
     manufacturerOnlyMsePreference: SpecialConditionFlag;
   };
+  requiredDocuments: RequiredDocument[];
 }
 
 const str = (description?: string) =>
@@ -101,6 +144,7 @@ export const TENDER_JSON_SCHEMA = {
     "documentsRequired",
     "buyerAddedTerms",
     "specialConditions",
+    "requiredDocuments",
   ],
   properties: {
     buyerOrganisation: str("Empty string if not stated in the tender - never guess."),
@@ -205,6 +249,56 @@ export const TENDER_JSON_SCHEMA = {
         manufacturerOnlyMsePreference: flagSchema,
       },
     },
+    requiredDocuments: {
+      type: "array",
+      description:
+        "Every compliance document, declaration, certificate, or undertaking this specific tender's ATC " +
+        "(Additional/Buyer Added Terms and Conditions) requires the bidder to submit - both common GeM " +
+        "declarations and any tender-specific or unusual ones. Do not invent a requirement that isn't actually " +
+        "stated in the tender.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "id",
+          "name",
+          "whatItMustContain",
+          "certificationType",
+          "externalAuthority",
+          "standardTemplate",
+          "sourceQuote",
+        ],
+        properties: {
+          id: str("A short stable slug for this requirement, e.g. \"req-1\", \"req-2\"."),
+          name: str("The document/declaration name as it would appear on a checklist, e.g. \"Declaration of Local Content (Make in India)\"."),
+          whatItMustContain: str(
+            "What this document must assert or contain, in your own words, based strictly on the ATC text."
+          ),
+          certificationType: {
+            type: "string",
+            enum: ["self_declaration", "external_certification"],
+            description:
+              "'self_declaration' if the bidder signs this themselves. 'external_certification' if it requires " +
+              "certification/signature by a Chartered Accountant, the OEM/manufacturer, or a government authority.",
+          },
+          externalAuthority: str(
+            "Empty string if certificationType is self_declaration. Otherwise which authority must certify it, " +
+            "e.g. \"Chartered Accountant (CA)\", \"OEM / Manufacturer\", \"Government Authority\"."
+          ),
+          standardTemplate: {
+            type: "string",
+            enum: STANDARD_DECLARATION_TEMPLATES,
+            description:
+              "Classify against this fixed list of well-known GeM declaration formats if it matches one. Use " +
+              "'other' only for a genuinely tender-specific or unusual requirement with no standard format.",
+          },
+          sourceQuote: str(
+            "Verbatim ATC/tender text establishing this requirement. Never paraphrase and never invent - if you " +
+            "cannot find a supporting quote, do not include this requirement at all."
+          ),
+        },
+      },
+    },
   },
 } as const;
 
@@ -238,4 +332,5 @@ export const emptyTenderData: TenderData = {
     oneBidderOneBid: { present: false, sourceQuote: "" },
     manufacturerOnlyMsePreference: { present: false, sourceQuote: "" },
   },
+  requiredDocuments: [],
 };

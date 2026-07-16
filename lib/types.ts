@@ -51,6 +51,8 @@ export interface CompanyProfile {
   bankDetails: BankDetails;
   registeredAddress: string;
   boardOfDirectors: BoardMember[];
+  authorizedSignatoryName: string;
+  authorizedSignatoryDesignation: string;
 }
 
 export const emptyProfile: CompanyProfile = {
@@ -70,6 +72,8 @@ export const emptyProfile: CompanyProfile = {
   bankDetails: emptyBankDetails,
   registeredAddress: "",
   boardOfDirectors: [],
+  authorizedSignatoryName: "",
+  authorizedSignatoryDesignation: "",
 };
 
 export interface Proposal {

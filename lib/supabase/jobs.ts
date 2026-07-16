@@ -21,6 +21,8 @@ export type JobStatus =
   | "assembling"
   | "assembled"
   | "enriching"
+  | "enriched"
+  | "generating_documents"
   | "complete"
   | "error";
 

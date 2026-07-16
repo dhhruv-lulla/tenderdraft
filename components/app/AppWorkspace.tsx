@@ -5,10 +5,12 @@ import Link from "next/link";
 import { Sparkles, Loader2, Lock } from "lucide-react";
 import DocumentUploader from "@/components/DocumentUploader";
 import ProposalPanel from "@/components/ProposalPanel";
+import ComplianceDocumentsPanel from "@/components/ComplianceDocumentsPanel";
 import { ToastStack, ToastData } from "@/components/Toast";
 import type { CompanyProfile } from "@/lib/types";
 import type { ProposalDocument } from "@/lib/proposalDocument";
 import { buildHeaderInfo } from "@/lib/proposalDocument";
+import type { ComplianceDocumentRecord } from "@/lib/supabase/complianceDocuments";
 
 const POLL_INTERVAL_MS = 1800;
 // Generous upper bound on total polling time, covering a full 3-stage run
@@ -25,6 +27,8 @@ const STAGE_LABELS: Record<string, string> = {
   assembling: "Building your proposal…",
   assembled: "Reviewing compliance terms…",
   enriching: "Reviewing compliance terms…",
+  enriched: "Preparing compliance documents…",
+  generating_documents: "Preparing compliance documents…",
 };
 
 export default function AppWorkspace({
@@ -38,6 +42,7 @@ export default function AppWorkspace({
   const [specUrl, setSpecUrl] = useState("");
   const [additionalInstructions, setAdditionalInstructions] = useState("");
   const [proposalDocument, setProposalDocument] = useState<ProposalDocument | null>(null);
+  const [complianceDocuments, setComplianceDocuments] = useState<ComplianceDocumentRecord[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progressLabel, setProgressLabel] = useState<string>("");
   const [filesErrorMsg, setFilesError] = useState<string | undefined>();
@@ -133,6 +138,7 @@ export default function AppWorkspace({
           setGenerating(false);
           setProgressLabel("");
           setProposalDocument(data.proposalDocument);
+          setComplianceDocuments(data.complianceDocuments ?? []);
           notify(
             data.saveWarning || "Proposal generated and saved to your dashboard.",
             data.saveWarning ? "error" : "success"
@@ -164,6 +170,7 @@ export default function AppWorkspace({
 
     setGenerating(true);
     setProposalDocument(null);
+    setComplianceDocuments([]);
     setProgressLabel(STAGE_LABELS.queued);
 
     try {
@@ -263,6 +270,7 @@ export default function AppWorkspace({
             headerInfo={headerInfo}
             onNotify={notify}
           />
+          {!isGenerating && <ComplianceDocumentsPanel documents={complianceDocuments} onNotify={notify} />}
         </div>
       </div>
 
